@@ -2,7 +2,7 @@
     "name": "sysforall/disabledproductsredirect",
     "description": "This module changes the default magento 404 page given when a product is disabled and redirects it to the first category it belongs to",
     "type": "magento2-module",
-    "version" : "2.0.0",
+    "version" : "1.0.0",
     "license": [
         "OSL-3.0",
         "AFL-3.0"
