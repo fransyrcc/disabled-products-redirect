@@ -81,18 +81,26 @@ class DisabledProductsRedirect
         if ($product->isDisabled()) {
             $cats = $product->getCategoryIds();
             if ($cats) {
-                $message = $this->getMessage();
-                $firstCategoryId = $cats[0];
-                $category = $this->categoryInterface->get($firstCategoryId);
-                $categoryUrl = $category->getUrl();
-                $this->messageManager->addNoticeMessage($message);
-                $resultRedirect = $this->resultRedirectFactory->create();
-                $resultRedirect->setHttpResponseCode(301);
-                return $resultRedirect->setPath($categoryUrl);
+                try{
+                    $firstCategoryId = $cats[0];
+                    $category = $this->categoryInterface->get($firstCategoryId);
+                    if ($category->getIsActive()) {
+                        $message = $this->getMessage();
+                        $categoryUrl = $category->getUrl();
+                        $this->messageManager->addNoticeMessage($message);
+                        $resultRedirect = $this->resultRedirectFactory->create();
+                        $resultRedirect->setHttpResponseCode(301);
+                        return $resultRedirect->setPath($categoryUrl);
+                    } else {
+                        // TODO consider cases where category can't be displayed, maybe check other categories
+                        throw new \Magento\Framework\Exception\LocalizedException(__('First category is not active'));
+                    } 
+                } catch (\Exception $e) { 
+                    return $proceed();
+                }
             }
-        } else {
-            return $proceed();
-        }
+        } 
+        return $proceed();
     }
     private function getMessage()
     {
