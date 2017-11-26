@@ -4,7 +4,7 @@
  *
  * @category  Sysforall
  * @package   sysforall/module-disabledproductsredirect
- * @version   1.0.0
+ * @version   1.2.0
  * @author    Fransy
  */
 namespace Sysforall\DisabledProductsRedirect\Plugin;
@@ -12,78 +12,98 @@ namespace Sysforall\DisabledProductsRedirect\Plugin;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Api\CategoryRepositoryInterface;
 use Magento\Framework\Message\ManagerInterface;
-use Magento\Framework\View\Result\Page;
-use Magento\Framework\App\ResponseFactory;
+use Magento\Framework\Controller\Result\RedirectFactory;
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\App\Request\Http;
+use \Magento\Catalog\Controller\Product as ProductController;
 
 class DisabledProductsRedirect
 {
     /**
      * @var \Magento\Catalog\Api\ProductRepositoryInterface
      */
-    protected $productRepository;
+    private $productRepository;
 
     /**
      * @var \Magento\Catalog\Api\CategoryRepositoryInterface
      */
-    protected $categoryInterface;
+    private $categoryInterface;
     
     /**
      * @var \Magento\Framework\Message\ManagerInterface
      */
-    protected $messageManager;
+    private $messageManager;
 
     /**
-     * @var \Magento\Framework\App\ResponseFactory
+     * @var \Magento\Framework\Controller\Result\RedirectFactory
      */
-    protected $responseFactory;
-
+    private $resultRedirectFactory;
     /**
      * @var \Magento\Framework\App\Config\ScopeConfigInterface
      */
     private $scopeConfig;
 
     /**
+     * @var \Magento\Framework\App\Request\Http
+     */
+    private $request;
+
+    /**
      * @param \Magento\Catalog\Api\ProductRepositoryInterface $productRepository
      * @param \Magento\Catalog\Api\CategoryRepositoryInterface $categoryInterface
      * @param \Magento\Framework\Message\ManagerInterface $messageManager
-     * @param \Magento\Framework\App\ResponseFactory $responseFactory
+     * @param \Magento\Framework\Controller\Result\RedirectFactory $resultRedirectFactory
+     * @param \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig
+     * @param \Magento\Framework\App\Request\Http $request
      */
     public function __construct(
         ProductRepositoryInterface $productRepository,
         CategoryRepositoryInterface $categoryInterface,
         ManagerInterface $messageManager,
-        ResponseFactory $responseFactory,
-        ScopeConfigInterface $scopeConfig
-    ) { 
+        RedirectFactory $resultRedirectFactory,
+        ScopeConfigInterface $scopeConfig,
+        Http $request
+    ) {
         $this->productRepository = $productRepository;
         $this->categoryInterface = $categoryInterface;
         $this->messageManager = $messageManager;
-        $this->responseFactory = $responseFactory;
+        $this->resultRedirectFactory = $resultRedirectFactory;
         $this->scopeConfig = $scopeConfig;
+        $this->request = $request;
     }
-
-    public function aroundPrepareAndRender( \Magento\Catalog\Helper\Product\View $subject, callable $proceed, Page $resultPage, $productId, $controller, $params = null )
+    /**
+     * @param ProductController $subject
+     */
+    public function aroundExecute(ProductController $subject, callable $proceed)
     {
-        $_product =  $this->productRepository->getById($productId);
-        $message = '';
-    
-        if($_product->getStatus() === '2') {
-            $cats = $_product->getCategoryIds();
-            if($cats) {
-                $storeScope = \Magento\Store\Model\ScopeInterface::SCOPE_STORE;
-                $message = $this->scopeConfig->getValue('sysforall/disabled_products_redirect/redirection_message', $storeScope);
+        $productId = (int) $this->request->getParam('id');
+        $product =  $this->productRepository->getById($productId);
+        if ($product->isDisabled()) {
+            $cats = $product->getCategoryIds();
+            if ($cats) {
+                $message = $this->getMessage();
                 $firstCategoryId = $cats[0];
                 $category = $this->categoryInterface->get($firstCategoryId);
-                $category_url = $category->getUrl();
-                   
-                $responseRedirect = $this->responseFactory->create();
-                $responseRedirect->setRedirect($category_url)->sendResponse('301');
+                $categoryUrl = $category->getUrl();
                 $this->messageManager->addNoticeMessage($message);
+                $resultRedirect = $this->resultRedirectFactory->create();
+                $resultRedirect->setHttpResponseCode(301);
+                return $resultRedirect->setPath($categoryUrl);
             }
+        } else {
+            return $proceed();
         }
-        else {
-            $proceed( $resultPage, $productId, $controller, $params);
+    }
+    private function getMessage()
+    {
+        $storeScope = \Magento\Store\Model\ScopeInterface::SCOPE_STORE;
+        $message =  $this->scopeConfig->getValue(
+            'sysforall/disabled_products_redirect/redirection_message',
+            $storeScope
+        );
+        if (!$message) {
+            $message = __('The product you tried to view is not available but here are some other options instead');
         }
+        return $message;
     }
 }
