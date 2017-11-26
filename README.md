@@ -20,7 +20,7 @@ This module  changes the default magento 404 by redirecting users who try to go 
 #### Using Composer
 
 ```
-composer require sysforall/disabledproductsredirect
+composer require sysforall/disabled-products-redirect
 ```
 
 #### Enable Extension
