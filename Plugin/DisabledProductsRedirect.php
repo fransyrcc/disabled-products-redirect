@@ -81,7 +81,7 @@ class DisabledProductsRedirect
         if ($product->isDisabled()) {
             $cats = $product->getCategoryIds();
             if ($cats) {
-                try{
+                try {
                     $firstCategoryId = $cats[0];
                     $category = $this->categoryInterface->get($firstCategoryId);
                     if ($category->getIsActive()) {
@@ -94,12 +94,12 @@ class DisabledProductsRedirect
                     } else {
                         // TODO consider cases where category can't be displayed, maybe check other categories
                         throw new \Magento\Framework\Exception\LocalizedException(__('First category is not active'));
-                    } 
-                } catch (\Exception $e) { 
+                    }
+                } catch (\Exception $e) {
                     return $proceed();
                 }
             }
-        } 
+        }
         return $proceed();
     }
     private function getMessage()
